@@ -1,0 +1,70 @@
+Q1:
+select t1.film_title,
+c.name AS category_name,
+t1.rental_count
+from
+	(select f.film_id,
+	f.title As film_title,
+	Count(*) AS rental_count
+	from film f
+	join  inventory i on f.film_id = i.film_id
+	join rental r on i.inventory_id = r.inventory_id
+	Group by 1) t1
+
+join film_category fc on t1.film_id = fc.film_id
+join category c on fc.category_id = c.category_id
+where c.name  IN ('Animation', 'Children', 'Classics', 'Comedy', 'Family', 'Music')
+order by c.name , film_title;
+
+Q2:
+select 
+Date_part('month', rental_date) As month,
+Date_part('year', rental_date) As year,
+i.store_id,
+Count(*) As count_rentals
+	from rental r
+	join inventory i on i.inventory_id = r.inventory_id
+	where i.store_id= 1 OR i.store_id = 2
+	Group by 2 ,1, i.store_id
+	order by count_rentals DESC;
+
+Q3:
+select 
+DATE_TRUNC('month', p.payment_date) As pay_month,
+first_name || ' ' || last_name As fullname,
+Count(*) As pay_countpermon,
+SUM(p.amount) As pay_amount
+	from customer c
+	join payment p on p.customer_id = c.customer_id
+	where c.customer_id IN( select c.customer_id
+		from customer c
+		join payment p on p.customer_id = c.customer_id
+		Group by 1
+		order by SUM(p.amount) Desc
+		limit 10)
+Group by 1, 2 
+order by fullname ;
+
+Q4:
+select 
+fullname,
+pay_month,
+pay_amount,
+LEAD(pay_amount) over (partition by fullname order by pay_month) - pay_amount AS difference,
+SUM(4) over ( partition by fullname) As total_difference
+from
+	(select DATE_TRUNC('month', p.payment_date) As pay_month,
+	first_name || ' ' || last_name As fullname,
+	Count(*) As pay_countpermon,
+	SUM(p.amount) As pay_amount
+	from customer c
+	join payment p on p.customer_id = c.customer_id
+	where c.customer_id IN( 
+		select c.customer_id
+		from customer c
+		join payment p on p.customer_id = c.customer_id
+		Group by 1
+		order by SUM(p.amount) Desc
+		limit 10)
+	Group by 1, 2 
+	order by fullname) sub;
